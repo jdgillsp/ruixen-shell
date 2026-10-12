@@ -874,6 +874,10 @@ Item {
 
   IpcHandler {
     target: "ruixen.notch"
+    function status(): string {
+      var names = Quickshell.screens.map(function(screen){return screen.name})
+      return JSON.stringify({visible:!root.fullscreenActive && !root.barHidden && !root.fullbarStyle,fullscreen:root.fullscreenActive,barHidden:root.barHidden,fullbarStyle:root.fullbarStyle,screen:names.length ? names[0] : "",screens:names})
+    }
     function openLauncher(): void { root.launcherOpen = true }
     function closeLauncher(): void { root.launcherOpen = false }
     function toggleLauncher(): void { root.launcherOpen = !root.launcherOpen }
