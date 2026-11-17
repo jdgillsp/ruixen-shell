@@ -87,7 +87,9 @@ check "after real repair: a follow-up dry-run reports healthy again" \
 fixture_repo="$fake_home/checkout"
 git init -q "$fixture_repo"
 cp "$repo_dir/ruixen-repair.sh" "$fixture_repo/"
-git -C "$fixture_repo" add ruixen-repair.sh
+# The script sources its own lib/ helper, so a valid checkout carries it too.
+cp -r "$repo_dir/lib" "$fixture_repo/"
+git -C "$fixture_repo" add ruixen-repair.sh lib
 git -C "$fixture_repo" -c user.name=Test -c user.email=test@example.com \
   -c commit.gpgsign=false commit -qm 'Repair fixture'
 git -C "$fixture_repo" worktree add -q --detach "$fake_home/worktree" HEAD

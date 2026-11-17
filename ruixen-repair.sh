@@ -30,6 +30,12 @@ plugin_source_dirs=("$script_dir"/ruixen.*/ "$script_dir"/bars/*/ruixen.*/)
 # would permanently, falsely report both as drifted. dir_hash() below
 # hashes the same staged copy install.sh itself actually deploys FROM,
 # for these two ids, instead of the raw source directory.
+# Git validates both a normal checkout's directory and a linked worktree's
+# gitfile. Checking this exact path also rejects copies inside another repo.
+git rev-parse --resolve-git-dir "$script_dir/.git" >/dev/null 2>&1 || {
+  printf 'ruixen-repair: %s is not a git checkout -- clone the repo with git instead of copying files out of it\n' "$script_dir" >&2
+  exit 1
+}
 source "$script_dir/lib/inject-shared-wallpaper-files.sh"
 dry_run=0
 
@@ -47,12 +53,6 @@ for arg in "$@"; do
   esac
 done
 
-# Git validates both a normal checkout's directory and a linked worktree's
-# gitfile. Checking this exact path also rejects copies inside another repo.
-git rev-parse --resolve-git-dir "$script_dir/.git" >/dev/null 2>&1 || {
-  printf 'ruixen-repair: %s is not a git checkout -- clone the repo with git instead of copying files out of it\n' "$script_dir" >&2
-  exit 1
-}
 
 # Same content-hash logic as ruixen-doctor.sh -- see that script's own
 # comment for why this replaced a version-string comparison (most
