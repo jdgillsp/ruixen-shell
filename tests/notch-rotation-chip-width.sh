@@ -34,8 +34,10 @@ check() {
   fi
 }
 
-check "the Shuffle chip's value segment is a fixed width, same technique the Effect chip's own value segment already uses" \
-  "$(grep -Fc 'readonly property real valueSegmentWidth: Math.max(' "$wallpapers_qml")" "2"
+# The Effect chip this originally matched became a dropdown, so the Shuffle
+# chip is now the only fixed-width value segment left in this file.
+check "the Shuffle chip's value segment is a fixed width (FontMetrics-based)" \
+  "$(grep -Fc 'readonly property real valueSegmentWidth: Math.max(' "$wallpapers_qml")" "1"
 
 check "the fixed width covers all five interval values (Off/5m/15m/30m/60m), not just the current one" \
   "$(grep -A10 'id: rotationValueMetrics' "$wallpapers_qml" | grep -c 'advanceWidth("Off")\|advanceWidth("5m")\|advanceWidth("15m")\|advanceWidth("30m")\|advanceWidth("60m")')" "5"
