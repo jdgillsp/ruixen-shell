@@ -1878,6 +1878,7 @@ PanelWindow {
             KanbanContent {
               anchors.fill: parent
               visible: panel.dashboardTab === 3
+              active: panel.dashboardTab === 3 && panel.expanded
               textColor: panel.notchRoot.textColor
               muted: panel.notchRoot.muted
               accent: panel.notchRoot.accent

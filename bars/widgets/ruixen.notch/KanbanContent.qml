@@ -52,6 +52,8 @@ Item {
   readonly property color readableAccentColor: readableSemanticColor(accent)
   property string fontFamily: "JetBrainsMono Nerd Font"
   property var kanbanService: null
+  property bool active: false
+  property string viewMode: "kanban" // "kanban" | "ubj"
 
   // ---- In-panel editing state (the GUI path -- see this file's own
   // header comment for why it exists now). Exactly ONE editor open at
@@ -1156,29 +1158,79 @@ Item {
   // strip above the board.
   ColumnLayout {
     anchors.fill: parent
-    spacing: 0
+    spacing: 6
+
+    RowLayout {
+      Layout.fillWidth: true
+      Layout.rightMargin: 10
+      spacing: 6
+
+      Item { Layout.fillWidth: true }
+
+      Rectangle {
+        radius: 7
+        color: root.cardSurface
+        border.width: 1
+        border.color: root.cardBorderColor
+        implicitWidth: modeRow.implicitWidth + 6
+        implicitHeight: 24
+
+        RowLayout {
+          id: modeRow
+          anchors.centerIn: parent
+          spacing: 4
+
+          Rectangle {
+            radius: 5
+            color: root.viewMode === "kanban" ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22) : "transparent"
+            implicitWidth: kbLbl.implicitWidth + 12
+            implicitHeight: 18
+            Text {
+              id: kbLbl
+              anchors.centerIn: parent
+              text: "Kanban"
+              color: root.viewMode === "kanban" ? root.readableAccentColor : root.muted
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              font.bold: root.viewMode === "kanban"
+            }
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.viewMode = "kanban"
+            }
+          }
+
+          Rectangle {
+            radius: 5
+            color: root.viewMode === "ubj" ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22) : "transparent"
+            implicitWidth: ubjLbl.implicitWidth + 12
+            implicitHeight: 18
+            Text {
+              id: ubjLbl
+              anchors.centerIn: parent
+              text: "UBJ Today"
+              color: root.viewMode === "ubj" ? root.readableAccentColor : root.muted
+              font.family: root.fontFamily
+              font.pixelSize: 10
+              font.bold: root.viewMode === "ubj"
+            }
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.viewMode = "ubj"
+            }
+          }
+        }
+      }
+    }
 
     RowLayout {
       id: columnsRow
+      visible: root.viewMode === "kanban"
       Layout.fillWidth: true
       Layout.fillHeight: true
-      // Extra clearance on the right -- direct report ("thrid panel
-      // sits too close to edge"), confirmed live: the Done column's own
-      // right edge sat only a few px from the notch's own curved right
-      // edge. Same fix, same value, as MetricsContent.qml's own
-      // Layout.rightMargin: 10 on its stat-tile grid (its own comment:
-      // "the expanded panel's outer anchors.rightMargin... wasn't enough
-      // breathing room on its own for this dense a grid") -- this tab is
-      // the same shape of problem, a full-width grid of tonal panels
-      // reaching the panel's own right edge.
       Layout.rightMargin: 10
-      // Same reasoning, bottom edge -- direct follow-up: "the buttom of
-      // the panel stil ends too close to the buttom of the notch edge".
-      // The notch's own signature shape has its rounded corners at the
-      // BOTTOM (see Overlay.qml's own bottomLeftRadius/bottomRightRadius
-      // on the notch shape itself), so a full-height panel reaching the
-      // shared 12px outer bottomMargin needs real clearance from that
-      // curve, same as the right edge did.
       Layout.bottomMargin: 10
       spacing: 8
 
@@ -1186,6 +1238,22 @@ Item {
         model: root.kanbanService ? root.kanbanService.columns : []
         delegate: KanbanColumn {}
       }
+    }
+
+    UbjTodayPanel {
+      visible: root.viewMode === "ubj"
+      active: root.active && root.viewMode === "ubj"
+      Layout.fillWidth: true
+      Layout.fillHeight: true
+      textColor: root.textColor
+      muted: root.muted
+      accent: root.accent
+      successColor: root.successColor
+      warningColor: root.warningColor
+      dangerColor: root.dangerColor
+      cardSurface: root.cardSurface
+      cardBorderColor: root.cardBorderColor
+      fontFamily: root.fontFamily
     }
   }
 }
