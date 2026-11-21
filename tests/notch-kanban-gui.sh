@@ -158,10 +158,15 @@ check "Kanban editor surface is text-contrast derived for dark and light themes"
   "$(grep -c 'editorSurface: Qt.rgba(panel.notchRoot.textColor.r, panel.notchRoot.textColor.g, panel.notchRoot.textColor.b, 0.075)' "$notch_window_qml")" "1"
 
 check "Kanban idle cards use no grey outline" \
-  "$(( $(grep -F -c ': "transparent"' "$content_qml") + $(grep -F -c 'border.width: cardRoot.deleteArmed || cardArea.containsMouse || editButton.hovered || deleteButton.hovered ? 1.5 : 0' "$content_qml") ))" "2"
+  "$(( $(grep -F -c ': "transparent"' "$content_qml") + $(grep -F -c 'border.width: cardRoot.deleteArmed || cardArea.containsMouse || editButton.hovered || deleteButton.hovered ? 1.5 : 0' "$content_qml") ))" "4"
+# 4, not 2 -- the Kanban / UBJ Today view-mode toggle's two segment
+# pills (unselected fill) add two more ': "transparent"' matches
+# alongside the card's own idle border.
 
 check "Kanban task and editor rectangles use surface tokens, not raw black" \
-  "$(grep -E -c 'color: root.cardSurface|color: root.editorSurface' "$content_qml")" "3"
+  "$(grep -E -c 'color: root.cardSurface|color: root.editorSurface' "$content_qml")" "4"
+# 4, not 3 -- the Kanban / UBJ Today view-mode toggle's own container
+# reads the same cardSurface token.
 
 check "Kanban cards import QtQuick effects for raised shadows" \
   "$(grep -c 'import QtQuick.Effects' "$content_qml")" "1"
