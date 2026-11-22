@@ -25,10 +25,12 @@ check "UbjTodayPanel.qml gates Timer on active && visible" "$(grep -c 'running: 
 check "KanbanContent.qml wires UbjTodayPanel with active guard" "$(grep -c 'active: root.active && root.viewMode === "ubj"' "$kanban")" "1"
 
 python3 - "$helper" <<'PY'
-import http.server, json, os, socketserver, subprocess, sys, tempfile, threading
+import http.server, json, os, socketserver, subprocess, sys, tempfile, threading, time
 
 helper = sys.argv[1]
 secret = "ubj-secret-test-key-999"
+# When set, optional endpoints sleep past ubj-today.py's OPTIONAL_TIMEOUT (2s).
+slow_optional = threading.Event()
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args):
@@ -46,6 +48,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     {"name": "ruixen-shell", "waiting_on_user": 0, "check": "failing", "git": {"unpushed": 2}},
                 ],
                 "archive": [],
+            }
+        elif slow_optional.is_set() and self.path.startswith(("/api/autonomy/priorities", "/api/backlog/board")):
+            time.sleep(8)
+            self.send_response(504)
+            self.end_headers()
+            return
+        elif self.path.startswith("/api/backlog/board"):
+            payload = {
+                "counts": {"ready": 3, "blocked": 1, "held": 2, "in_progress": 1, "done": 7},
+                "columns": {
+                    "ready": [{"title": "a", "flagged": True}, {"title": "b"}, {"title": "c", "flagged": False}],
+                    "blocked": [{"title": "d", "flagged": True}],
+                    "done": [{"title": "e"}],
+                },
             }
         elif self.path.startswith("/api/autonomy/priorities"):
             payload = {
@@ -70,7 +86,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-with socketserver.TCPServer(("127.0.0.1", 0), Handler) as srv:
+class Server(socketserver.ThreadingTCPServer):
+    daemon_threads = True
+    def handle_error(self, request, client_address):
+        pass  # slow handlers write to sockets the helper already abandoned
+
+with Server(("127.0.0.1", 0), Handler) as srv:
     port = srv.server_address[1]
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
@@ -88,6 +109,24 @@ with socketserver.TCPServer(("127.0.0.1", 0), Handler) as srv:
         assert data["compute"]["eligible_agents"] == ["claude (97%)"]
         assert data["compute"]["slots"][0]["agent"] == "claude"
 
+        # Backlog board summary fields
+        backlog = data["backlog"]
+        for field, want in {"ready": 3, "blocked": 1, "held": 2, "done": 7, "flagged": 2}.items():
+            assert backlog.get(field) == want, (field, backlog)
+
+        # Slow optional endpoints are capped and degrade to empty sections
+        slow_optional.set()
+        t0 = time.monotonic()
+        out_slow = subprocess.check_output(["python3", helper], env=env, text=True, timeout=10)
+        elapsed = time.monotonic() - t0
+        slow_optional.clear()
+        dslow = json.loads(out_slow)
+        assert dslow["online"] is True, dslow
+        assert dslow["summary"]["waiting_on_user"] == 1
+        assert dslow["compute"] == {} and dslow["backlog"] == {}, dslow
+        # Two optional requests capped at 2s each (~4s); an uncapped/3s default would take >=6s.
+        assert elapsed < 5.5, f"optional endpoints stalled helper for {elapsed:.1f}s"
+
         # Bad key returns offline cleanly without leaking secret
         with open(cfg_path, "w") as fh:
             json.dump({"api_port": port, "api_key": "wrong-key"}, fh)
@@ -103,7 +142,7 @@ out_off = subprocess.check_output(["python3", helper], env=env_off, text=True)
 doff = json.loads(out_off)
 assert doff["online"] is False
 assert "offline" in doff["error"].lower()
-print("  PASS  ubj-today.py authenticated online, 401, and offline paths")
+print("  PASS  ubj-today.py authenticated online, backlog board, slow-optional, 401, and offline paths")
 PY
 
 printf '%d passed, %d failed\n' "$pass" "$fail"

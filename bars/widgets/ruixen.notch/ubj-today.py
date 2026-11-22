@@ -5,6 +5,10 @@ Reads local UBJ config (~/.config/UseBestJudgment/config.json or UBJ_CONFIG_PATH
 for api_port and api_key, queries localhost /api/office and /api/autonomy/priorities
 with strict loopback-only, no-proxy, no-redirect GET requests, and prints a
 compact JSON summary to stdout. Never prints or echoes api_key.
+
+Optional endpoints (/api/autonomy/priorities, /api/backlog/board) use a shorter
+per-request timeout (OPTIONAL_TIMEOUT) so a slow optional endpoint degrades to an
+empty section instead of stalling the panel.
 """
 from __future__ import annotations
 
@@ -13,6 +17,10 @@ import os
 import sys
 import urllib.error
 import urllib.request
+
+
+OFFICE_TIMEOUT = 3.0
+OPTIONAL_TIMEOUT = 2.0
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -57,7 +65,7 @@ def _load_connection() -> tuple[int, str]:
     return port, api_key
 
 
-def _get_json(port: int, api_key: str, path: str, timeout: float = 3.0) -> dict:
+def _get_json(port: int, api_key: str, path: str, timeout: float = OFFICE_TIMEOUT) -> dict:
     url = f"http://127.0.0.1:{port}{path}"
     headers = {"Accept": "application/json"}
     if api_key:
@@ -149,7 +157,7 @@ def build_snapshot() -> dict:
 
     compute: dict = {}
     try:
-        pri = _get_json(port, api_key, "/api/autonomy/priorities?limit=5")
+        pri = _get_json(port, api_key, "/api/autonomy/priorities?limit=5", timeout=OPTIONAL_TIMEOUT)
         pol = pri.get("policy") if isinstance(pri.get("policy"), dict) else {}
         sup = pri.get("supply") if isinstance(pri.get("supply"), dict) else {}
         alloc = pri.get("allocation") if isinstance(pri.get("allocation"), dict) else {}
@@ -185,7 +193,7 @@ def build_snapshot() -> dict:
 
     backlog: dict = {}
     try:
-        bd = _get_json(port, api_key, "/api/backlog/board")
+        bd = _get_json(port, api_key, "/api/backlog/board", timeout=OPTIONAL_TIMEOUT)
         counts = bd.get("counts") if isinstance(bd.get("counts"), dict) else {}
         cols = bd.get("columns") if isinstance(bd.get("columns"), dict) else {}
         flagged = sum(
