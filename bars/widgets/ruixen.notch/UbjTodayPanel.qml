@@ -24,6 +24,7 @@ Item {
   property var summary: ({})
   property var attention: []
   property var compute: ({})
+  property var backlog: ({})
   property bool requestTimedOut: false
 
   function refresh() {
@@ -76,6 +77,7 @@ Item {
           root.summary = data.summary || ({});
           root.attention = data.attention || [];
           root.compute = data.compute || ({});
+          root.backlog = data.backlog || ({});
           root.checkedAt = Qt.formatTime(new Date(), "hh:mm:ss");
         } catch (e) {
           root.online = false;
@@ -336,6 +338,20 @@ Item {
               elide: Text.ElideRight
               Layout.fillWidth: true
             }
+          }
+
+          Text {
+            visible: root.backlog && root.backlog.ready !== undefined
+            text: "Board: " + (root.backlog.ready || 0) + " ready · "
+                  + (root.backlog.blocked || 0) + " blocked · "
+                  + (root.backlog.held || 0) + " held · "
+                  + (root.backlog.done || 0) + " done"
+                  + ((root.backlog.flagged || 0) > 0 ? (" · " + root.backlog.flagged + " flagged") : "")
+            color: (root.backlog.flagged || 0) > 0 ? root.dangerColor : root.muted
+            font.family: root.fontFamily
+            font.pixelSize: 10
+            elide: Text.ElideRight
+            Layout.fillWidth: true
           }
 
           Item { Layout.fillHeight: true }

@@ -183,12 +183,33 @@ def build_snapshot() -> dict:
     except Exception:
         compute = {}
 
+    backlog: dict = {}
+    try:
+        bd = _get_json(port, api_key, "/api/backlog/board")
+        counts = bd.get("counts") if isinstance(bd.get("counts"), dict) else {}
+        cols = bd.get("columns") if isinstance(bd.get("columns"), dict) else {}
+        flagged = sum(
+            1 for col_list in cols.values() if isinstance(col_list, list)
+            for c in col_list if isinstance(c, dict) and c.get("flagged")
+        )
+        backlog = {
+            "ready": int(counts.get("ready") or 0),
+            "blocked": int(counts.get("blocked") or 0),
+            "held": int(counts.get("held") or 0),
+            "in_progress": int(counts.get("in_progress") or 0),
+            "done": int(counts.get("done") or 0),
+            "flagged": flagged,
+        }
+    except Exception:
+        backlog = {}
+
     return {
         "online": True,
         "error": "",
         "summary": summary,
         "attention": attention[:6],
         "compute": compute,
+        "backlog": backlog,
     }
 
 
