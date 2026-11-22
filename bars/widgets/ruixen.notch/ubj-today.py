@@ -156,8 +156,16 @@ def build_snapshot() -> dict:
             })
 
     compute: dict = {}
+    backlog: dict = {}
+    from concurrent.futures import ThreadPoolExecutor
+    import time
+
+    deadline = time.monotonic() + OPTIONAL_TIMEOUT
+    pool = ThreadPoolExecutor(max_workers=2)
+    fut_pri = pool.submit(_get_json, port, api_key, "/api/autonomy/priorities?limit=5", OPTIONAL_TIMEOUT)
+    fut_bd = pool.submit(_get_json, port, api_key, "/api/backlog/board", OPTIONAL_TIMEOUT)
     try:
-        pri = _get_json(port, api_key, "/api/autonomy/priorities?limit=5", timeout=OPTIONAL_TIMEOUT)
+        pri = fut_pri.result(timeout=max(0.05, deadline - time.monotonic()))
         pol = pri.get("policy") if isinstance(pri.get("policy"), dict) else {}
         sup = pri.get("supply") if isinstance(pri.get("supply"), dict) else {}
         alloc = pri.get("allocation") if isinstance(pri.get("allocation"), dict) else {}
@@ -191,9 +199,8 @@ def build_snapshot() -> dict:
     except Exception:
         compute = {}
 
-    backlog: dict = {}
     try:
-        bd = _get_json(port, api_key, "/api/backlog/board", timeout=OPTIONAL_TIMEOUT)
+        bd = fut_bd.result(timeout=max(0.05, deadline - time.monotonic()))
         counts = bd.get("counts") if isinstance(bd.get("counts"), dict) else {}
         cols = bd.get("columns") if isinstance(bd.get("columns"), dict) else {}
         flagged = sum(
@@ -210,6 +217,8 @@ def build_snapshot() -> dict:
         }
     except Exception:
         backlog = {}
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
 
     return {
         "online": True,
